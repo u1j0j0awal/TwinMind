@@ -3,19 +3,6 @@ interface GroqMessage {
   content: string;
 }
 
-interface GroqResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
 interface WhisperResponse {
   text: string;
 }
@@ -23,18 +10,16 @@ interface WhisperResponse {
 export class GroqService {
   private apiKey: string;
   private baseUrl = 'https://api.groq.com/openai/v1';
-  // Use backend proxy for production (Vercel), direct API for development
-  private proxyUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
-    ? '/api/proxy' 
-    : null;
+  // Use backend proxy for all deployments (more reliable)
+  private proxyUrl = '/api/proxy';
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
   }
 
   private async callAPI(endpoint: string, data: any): Promise<any> {
-    if (this.proxyUrl) {
-      // Use backend proxy (production on Vercel)
+    try {
+      // Try using proxy first (works on Vercel and localhost)
       const response = await fetch(this.proxyUrl, {
         method: 'POST',
         headers: {
@@ -53,23 +38,28 @@ export class GroqService {
       }
 
       return response.json();
-    } else {
-      // Direct API calls (localhost development)
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
-      }
-
-      return response.json();
+    } catch (error) {
+      // Fall back to direct API for local development only
+      console.warn('Proxy failed, attempting direct API call:', error);
+      return this.directAPICall(endpoint, data);
     }
+  }
+
+  private async directAPICall(endpoint: string, data: any): Promise<any> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 
   async transcribeAudio(audioBlob: Blob): Promise<string> {
