@@ -197,27 +197,73 @@ Session exports as JSON with structure:
 
 ## Deployment
 
-### Deploy to Vercel
+### Deploy to Vercel (Recommended - 2 Minutes)
+
+**Option 1: Via GitHub (Automatic deployments)**
 
 ```bash
-# Install Vercel CLI
+# 1. Create a GitHub repo and push your code
+git remote add origin https://github.com/yourusername/twinmind.git
+git branch -M main
+git push -u origin main
+
+# 2. Go to https://vercel.com and sign in with GitHub
+# 3. Click "New Project" → Select your twinmind repository
+# 4. Framework: Vite, Build Command: npm run build, Output: dist
+# 5. Click "Deploy"
+
+# Your app is now live!
+```
+
+**Option 2: Direct CLI (One command)**
+
+```bash
+# 1. Install Vercel CLI
 npm install -g vercel
 
-# Deploy
+# 2. Deploy (interactive)
+cd path/to/twinmind
 vercel
 
-# Set environment (production recommended)
-# Add GROQ_API_KEY to Secrets in Vercel Dashboard (optional, for backend)
+# 3. Follow prompts:
+#    - Link to Vercel account
+#    - Confirm project settings
+#    - Deployment completes in ~30s
+
+# Your URL will look like: twinmind-xyz.vercel.app
 ```
 
-**Live URL**: [Your deployment URL]
+### Post-Deployment
 
-### Environment Variables
-No backend env vars currently required. API key is user-provided via settings UI.
+1. Open your deployment URL
+2. Go to Settings and paste your Groq API key
+3. Start recording!
 
-For production backend (optional):
+### Environment Variables (Optional Backend)
+
+No required environment variables for current setup (API key is user-provided).
+
+For optional backend proxy:
 ```
 GROQ_API_KEY=your_key_here
+VITE_API_URL=https://your-backend.com
+```
+
+## Running Locally
+
+```bash
+# 1. Navigate to project
+cd path/to/twinmind
+
+# 2. Install dependencies (first time only)
+npm install
+
+# 3. Start dev server
+npm run dev
+
+# 4. Open http://localhost:3000 in your browser
+
+# 5. Add Groq API key in Settings and start recording
 ```
 
 ## Code Quality
