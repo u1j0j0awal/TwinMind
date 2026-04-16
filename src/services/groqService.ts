@@ -23,9 +23,53 @@ interface WhisperResponse {
 export class GroqService {
   private apiKey: string;
   private baseUrl = 'https://api.groq.com/openai/v1';
+  // Use backend proxy for production (Vercel), direct API for development
+  private proxyUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+    ? '/api/proxy' 
+    : null;
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+  }
+
+  private async callAPI(endpoint: string, data: any): Promise<any> {
+    if (this.proxyUrl) {
+      // Use backend proxy (production on Vercel)
+      const response = await fetch(this.proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey: this.apiKey,
+          endpoint,
+          data,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `API Error: ${response.statusText}`);
+      }
+
+      return response.json();
+    } else {
+      // Direct API calls (localhost development)
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText}`);
+      }
+
+      return response.json();
+    }
   }
 
   async transcribeAudio(audioBlob: Blob): Promise<string> {
@@ -93,26 +137,15 @@ export class GroqService {
         ...messages,
       ];
 
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'mixtral-8x7b-32768',
-          messages: allMessages,
-          max_tokens: Math.min(contextWindow, 2000),
-          temperature: 0.7,
-        }),
-      });
+      const data = {
+        model: 'mixtral-8x7b-32768',
+        messages: allMessages,
+        max_tokens: Math.min(contextWindow, 2000),
+        temperature: 0.7,
+      };
 
-      if (!response.ok) {
-        throw new Error(`Chat API failed: ${response.statusText}`);
-      }
-
-      const data: GroqResponse = await response.json();
-      return data.choices[0]?.message?.content || '';
+      const response = await this.callAPI('/chat/completions', data);
+      return response.choices[0]?.message?.content || '';
     } catch (error) {
       console.error('Error calling Groq chat API:', error);
       throw error;
@@ -126,29 +159,18 @@ export class GroqService {
     label: string
   ): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'mixtral-8x7b-32768',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userContent },
-          ],
-          max_tokens: Math.min(contextWindow, 2000),
-          temperature: 0.7,
-        }),
-      });
+      const data = {
+        model: 'mixtral-8x7b-32768',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: Math.min(contextWindow, 2000),
+        temperature: 0.7,
+      };
 
-      if (!response.ok) {
-        throw new Error(`API call failed (${label}): ${response.statusText}`);
-      }
-
-      const data: GroqResponse = await response.json();
-      return data.choices[0]?.message?.content || '';
+      const response = await this.callAPI('/chat/completions', data);
+      return response.choices[0]?.message?.content || '';
     } catch (error) {
       console.error(`Error calling Groq API (${label}):`, error);
       throw error;
